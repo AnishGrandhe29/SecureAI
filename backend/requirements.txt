@@ -1,0 +1,44 @@
+# FastAPI & Server
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# OpenAI
+openai==1.51.0
+
+# Database
+sqlalchemy[asyncio]==2.0.35
+aiosqlite==0.20.0
+asyncpg==0.29.0
+
+# Vector Store & Embeddings
+chromadb==0.5.5
+sentence-transformers==3.1.1
+pypdf==4.3.1
+
+# Data & Analytics
+pandas==2.2.2
+numpy==1.26.4
+faker==28.4.1
+reportlab==4.2.2
+
+# Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+presidio-analyzer==2.2.355
+presidio-anonymizer==2.2.355
+
+# Caching
+redis==5.1.1
+aiocache==0.12.2
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Logging
+structlog==24.4.0
+
+# Utilities
+python-multipart==0.0.9
+python-dotenv==1.0.1
