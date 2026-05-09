@@ -54,7 +54,9 @@ open http://localhost:3000
                   └─────────────┘    └──────────────┘    └─────────────┘
 ```
 
-## Architecture Decisions & Tradeoffs
+## Notes on Assumptions / Tradeoffs
+
+### Architecture Tradeoffs
 
 | Decision | Rationale |
 |---|---|
@@ -66,6 +68,23 @@ open http://localhost:3000
 | Presidio PII scrubbing | Production-grade; avoids sending viewer PII to the LLM |
 | Redis TTL caching | Analytics queries are expensive; 5-minute TTL keeps UI responsive |
 | Tool-based architecture | LLM never touches raw data; every data access is mediated and auditable |
+| OpenAI GPT-4o for Orchestration | Robust function calling and reliable structured JSON output, despite external API dependency |
+| Admin-triggered Data Pipelines | Allows manual reseeding/re-embedding via UI, trading off automated cron jobs for explicit administrative control |
+
+### Assumptions
+
+- **SQLite** used for development portability. `DATABASE_URL` env var switches to PostgreSQL for production with zero code changes.
+- **ChromaDB** runs in-process using local file persistence. Production would use Qdrant or Weaviate for horizontal scaling.
+- **`all-MiniLM-L6-v2`** chosen for embedding — requires no GPU, downloads ~80MB on first run.
+- **Synthetic data** seeded with `random.seed(42)` — results are deterministic and reproducible.
+- **Demo users are hard-coded** — no user management UI. Production would use a proper user store with hashed passwords.
+- **PDF chunking** uses fixed 400-token windows with 50-token overlap. Production would use semantic chunking.
+- **Tool templates are a fixed allowlist** — deliberate security decision. The LLM cannot construct arbitrary queries.
+- **No streaming** on chat — full response returned as single JSON. SSE streaming is a straightforward upgrade.
+- **HTTPS** not configured at application level — assumed handled by reverse proxy in production.
+- **Data volumes** — ~5,000 rows per table, ~500 ChromaDB vectors. Fits on any machine with 4GB RAM.
+- **Admin Ingestion Operations** — Triggering CSV seed or PDF embeddings via the Admin Panel is resource-intensive and assumes safe usage by authorized personnel.
+- **Docker Compose Setup** — Designed for single-node local development. Production deployments would split frontend (e.g., Vercel) and backend (e.g., Cloud Run / ECS).
 
 ## Security Controls
 
@@ -81,19 +100,6 @@ open http://localhost:3000
 | Audit logging | Every request and tool call logged with structlog (JSON). Raw results never logged |
 | Input validation | All request bodies validated via Pydantic models with explicit field constraints |
 | Admin endpoint protection | Ingest routes require `role == "admin"` checked in dependency |
-
-## Assumptions
-
-- **SQLite** used for development portability. `DATABASE_URL` env var switches to PostgreSQL for production with zero code changes.
-- **ChromaDB** runs in-process using local file persistence. Production would use Qdrant or Weaviate for horizontal scaling.
-- **`all-MiniLM-L6-v2`** chosen for embedding — requires no GPU, downloads ~80MB on first run.
-- **Synthetic data** seeded with `random.seed(42)` — results are deterministic and reproducible.
-- **Demo users are hard-coded** — no user management UI. Production would use a proper user store with hashed passwords.
-- **PDF chunking** uses fixed 400-token windows with 50-token overlap. Production would use semantic chunking.
-- **Tool templates are a fixed allowlist** — deliberate security decision. The LLM cannot construct arbitrary queries.
-- **No streaming** on chat — full response returned as single JSON. SSE streaming is a straightforward upgrade.
-- **HTTPS** not configured at application level — assumed handled by reverse proxy in production.
-- **Data volumes** — ~5,000 rows per table, ~500 ChromaDB vectors. Fits on any machine with 4GB RAM.
 
 ## API Endpoints
 
