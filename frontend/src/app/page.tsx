@@ -6,10 +6,11 @@ import LoginScreen from "@/components/LoginScreen";
 import ChatPanel from "@/components/ChatPanel";
 import InsightsPanel from "@/components/InsightsPanel";
 import FilterBar from "@/components/FilterBar";
+import AdminPanel from "@/components/AdminPanel";
 
 function AppContent() {
   const { auth, logout } = useApp();
-  const [activeTab, setActiveTab] = useState<"chat" | "insights">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "insights" | "admin">("chat");
 
   if (!auth.token) return <LoginScreen />;
 
@@ -43,14 +44,14 @@ function AppContent() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* Tabs */}
-          {(["chat", "insights"] as const).map((tab) => (
+          {(["chat", "insights", ...(auth.role === "admin" ? ["admin"] as const : [])] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{
               padding: "8px 20px", borderRadius: 8, border: "none", cursor: "pointer",
               fontSize: 14, fontWeight: 500, transition: "all 0.2s",
               background: activeTab === tab ? "var(--accent-muted)" : "transparent",
               color: activeTab === tab ? "var(--accent-hover)" : "var(--text-secondary)",
             }}>
-              {tab === "chat" ? "💬 Chat" : "📊 Insights"}
+              {tab === "chat" ? "💬 Chat" : tab === "insights" ? "📊 Insights" : "⚙️ Admin"}
             </button>
           ))}
         </div>
@@ -72,11 +73,13 @@ function AppContent() {
       </header>
 
       {/* Filter Bar */}
-      <FilterBar />
+      {activeTab !== "admin" && <FilterBar />}
 
       {/* Main Content */}
       <main style={{ flex: 1, padding: "0 24px 24px" }}>
-        {activeTab === "chat" ? <ChatPanel /> : <InsightsPanel />}
+        {activeTab === "chat" && <ChatPanel />}
+        {activeTab === "insights" && <InsightsPanel />}
+        {activeTab === "admin" && <AdminPanel />}
       </main>
     </div>
   );

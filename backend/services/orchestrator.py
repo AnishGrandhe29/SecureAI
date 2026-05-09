@@ -1,13 +1,13 @@
 """
-AI Orchestrator — Google Gemini function-calling agentic loop.
+AI Orchestrator — OpenAI GPT-4o function-calling agentic loop.
 This is the most important file in the codebase.
-Runs a multi-turn loop dispatching tool calls until Gemini produces a final answer.
+Runs a multi-turn loop dispatching tool calls until GPT produces a final answer.
 """
 
 import json
 import time
 import structlog
-import google.generativeai as genai
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 from config import settings
 from services.sql_tool import query_sql, QUERY_TEMPLATES
@@ -17,9 +17,9 @@ from services.chart_tool import generate_chart, ChartSpec
 
 logger = structlog.get_logger()
 
-# ─── Configure Gemini Client ─────────────────────────────────────────
+# ─── Configure OpenAI Client ─────────────────────────────────────────
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
+client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 # ─── System Prompt ──────────────────────────────────────────────────
 
@@ -39,109 +39,108 @@ Rules:
 - Answers must be factual and grounded in retrieved data only
 - Be concise but complete. Use bullet points for lists, prose for explanations."""
 
-# ─── Gemini Function (Tool) Definitions ─────────────────────────────
+# ─── OpenAI Tool (Function) Definitions ─────────────────────────────
 
 TOOLS = [
-    genai.protos.Tool(
-        function_declarations=[
-            genai.protos.FunctionDeclaration(
-                name="query_sql",
-                description=(
-                    "Query structured movie, viewer, and performance data from the SQL database. "
-                    "Use for numerical questions: revenue, views, ratings, rankings, comparisons. "
-                    "Select the appropriate query_name from the allowed list and pass validated params."
-                ),
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "query_name": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            enum=list(QUERY_TEMPLATES.keys()),
-                            description="Named query template to execute",
-                        ),
-                        "params": genai.protos.Schema(
-                            type=genai.protos.Type.OBJECT,
-                            description="Parameter values for the selected template (e.g. year, limit, title, genre, month)",
-                        ),
-                    },
-                    required=["query_name"],
-                ),
+    {
+        "type": "function",
+        "function": {
+            "name": "query_sql",
+            "description": (
+                "Query structured movie, viewer, and performance data from the SQL database. "
+                "Use for numerical questions: revenue, views, ratings, rankings, comparisons. "
+                "Select the appropriate query_name from the allowed list and pass validated params."
             ),
-            genai.protos.FunctionDeclaration(
-                name="search_documents",
-                description=(
-                    "Retrieve relevant passages from internal PDF reports and documents. "
-                    "Use for qualitative questions about strategy, campaigns, editorial decisions, "
-                    "audience insights, or when structured data alone is insufficient."
-                ),
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "query": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            description="Natural language search query",
-                        ),
-                        "doc_type": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            enum=["quarterly_report", "campaign", "roadmap", "policy", "audience"],
-                            description="Optional: filter to a specific document type",
-                        ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query_name": {
+                        "type": "string",
+                        "enum": list(QUERY_TEMPLATES.keys()),
+                        "description": "Named query template to execute",
                     },
-                    required=["query"],
-                ),
-            ),
-            genai.protos.FunctionDeclaration(
-                name="analyze_csv",
-                description=(
-                    "Run aggregation queries over CSV business data. "
-                    "Use for trend analysis, multi-dimensional grouping, and comparisons across genres, "
-                    "cities, or time periods."
-                ),
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "metric": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            enum=METRICS,
-                        ),
-                        "group_by": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            enum=DIMENSIONS,
-                        ),
-                        "filters": genai.protos.Schema(
-                            type=genai.protos.Type.OBJECT,
-                            description="Optional filters: year (int), genre (str), city (str), month (str)",
-                        ),
+                    "params": {
+                        "type": "object",
+                        "description": "Parameter values for the selected template (e.g. year, limit, title, genre, month)",
                     },
-                    required=["metric", "group_by"],
-                ),
+                },
+                "required": ["query_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_documents",
+            "description": (
+                "Retrieve relevant passages from internal PDF reports and documents. "
+                "Use for qualitative questions about strategy, campaigns, editorial decisions, "
+                "audience insights, or when structured data alone is insufficient."
             ),
-            genai.protos.FunctionDeclaration(
-                name="generate_chart",
-                description=(
-                    "Generate a chart specification from data. "
-                    "Use when the user would benefit from a visual summary of retrieved data."
-                ),
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "chart_type": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            enum=["bar", "line", "scatter", "pie"],
-                        ),
-                        "data": genai.protos.Schema(
-                            type=genai.protos.Type.ARRAY,
-                            items=genai.protos.Schema(type=genai.protos.Type.OBJECT),
-                        ),
-                        "x_key": genai.protos.Schema(type=genai.protos.Type.STRING),
-                        "y_key": genai.protos.Schema(type=genai.protos.Type.STRING),
-                        "title": genai.protos.Schema(type=genai.protos.Type.STRING),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Natural language search query",
                     },
-                    required=["chart_type", "data", "x_key", "y_key", "title"],
-                ),
+                    "doc_type": {
+                        "type": "string",
+                        "enum": ["quarterly_report", "campaign", "roadmap", "policy", "audience"],
+                        "description": "Optional: filter to a specific document type",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "analyze_csv",
+            "description": (
+                "Run aggregation queries over CSV business data. "
+                "Use for trend analysis, multi-dimensional grouping, and comparisons across genres, "
+                "cities, or time periods."
             ),
-        ]
-    )
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "metric": {"type": "string", "enum": METRICS},
+                    "group_by": {"type": "string", "enum": DIMENSIONS},
+                    "filters": {
+                        "type": "object",
+                        "description": "Optional filters: year (int), genre (str), city (str), month (str)",
+                    },
+                },
+                "required": ["metric", "group_by"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_chart",
+            "description": (
+                "Generate a chart specification from data. "
+                "Use when the user would benefit from a visual summary of retrieved data."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chart_type": {"type": "string", "enum": ["bar", "line", "scatter", "pie"]},
+                    "data": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                    },
+                    "x_key": {"type": "string"},
+                    "y_key": {"type": "string"},
+                    "title": {"type": "string"},
+                },
+                "required": ["chart_type", "data", "x_key", "y_key", "title"],
+            },
+        },
+    },
 ]
 
 
@@ -195,94 +194,68 @@ class OrchestratorResponse(BaseModel):
 MAX_TOOL_ROUNDS = 10
 
 
-def _convert_history_to_gemini(messages: list[dict]) -> list[dict]:
-    """Convert OpenAI-style message list to Gemini-style history list."""
-    history = []
-    for msg in messages:
-        role = msg["role"]
-        content = msg["content"]
-        if role == "assistant":
-            role = "model"
-        if role in ("user", "model") and content:
-            history.append({"role": role, "parts": [content]})
-    return history
-
-
 async def run_conversation(
     messages: list[dict],
     filters: dict | None = None,
     user_role: str = "analyst",
 ) -> OrchestratorResponse:
     """
-    Run the Gemini agentic function-calling loop.
-    Continues dispatching tool calls until Gemini produces a final text answer.
+    Run the OpenAI agentic function-calling loop.
+    Continues dispatching tool calls until GPT produces a final text answer.
     """
     tool_trace = []
     chart_spec = None
     sources_used = set()
 
-    # Build system instruction with optional active filters
-    system_instruction = SYSTEM_PROMPT
+    # Build message list with system prompt
+    system_message = {"role": "system", "content": SYSTEM_PROMPT}
     if filters:
-        system_instruction += f"\n\nActive user filters: {json.dumps(filters)}"
+        system_message["content"] += f"\n\nActive user filters: {json.dumps(filters)}"
 
-    # Initialise the model
-    model = genai.GenerativeModel(
-        model_name=settings.GEMINI_MODEL,
-        tools=TOOLS,
-        system_instruction=system_instruction,
-    )
-
-    # Separate the last user message from history
-    history = _convert_history_to_gemini(messages[:-1])
-    last_user_message = messages[-1]["content"] if messages else ""
-
-    # Start chat session with existing history
-    chat = model.start_chat(history=history)
+    chat_messages = [system_message] + list(messages)
 
     # Agentic loop
     for _round in range(MAX_TOOL_ROUNDS):
-        response = await chat.send_message_async(last_user_message if _round == 0 else tool_results_part)
+        response = await client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=chat_messages,
+            tools=TOOLS,
+            tool_choice="auto",
+        )
 
-        # Collect all parts from the response
-        has_function_call = False
-        tool_results_part = []
+        message = response.choices[0].message
+        chat_messages.append(message.model_dump(exclude_none=True))
 
-        for candidate in response.candidates:
-            for part in candidate.content.parts:
-                if part.function_call.name:
-                    has_function_call = True
-                    fn_name = part.function_call.name
-                    fn_args = dict(part.function_call.args)
-
-                    result = await _dispatch_tool(fn_name, fn_args)
-                    sources_used.add(result.get("source", fn_name))
-
-                    # Capture chart spec
-                    if fn_name == "generate_chart" and "error" not in result:
-                        chart_spec = result
-
-                    tool_trace.append({
-                        "tool": fn_name,
-                        "input": fn_args,
-                        "row_count": result.get("row_count", len(result.get("data", result.get("chunks", [])))),
-                        "source": result.get("source"),
-                    })
-
-                    # Build the function response part for the next turn
-                    tool_results_part.append(
-                        genai.protos.Part(
-                            function_response=genai.protos.FunctionResponse(
-                                name=fn_name,
-                                response={"result": json.dumps(result, default=str)},
-                            )
-                        )
-                    )
-
-        if not has_function_call:
-            # Final text answer
-            answer = response.text or "I was unable to generate a response."
+        # No tool calls — final answer
+        if not message.tool_calls:
+            answer = message.content or "I was unable to generate a response."
             break
+
+        # Dispatch all tool calls in parallel
+        for tool_call in message.tool_calls:
+            fn_name = tool_call.function.name
+            fn_args = json.loads(tool_call.function.arguments)
+
+            result = await _dispatch_tool(fn_name, fn_args)
+            sources_used.add(result.get("source", fn_name))
+
+            # Capture chart spec
+            if fn_name == "generate_chart" and "error" not in result:
+                chart_spec = result
+
+            tool_trace.append({
+                "tool": fn_name,
+                "input": fn_args,
+                "row_count": result.get("row_count", len(result.get("data", result.get("chunks", [])))),
+                "source": result.get("source"),
+            })
+
+            # Append tool result to message history
+            chat_messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": json.dumps(result, default=str),
+            })
     else:
         answer = "I reached the maximum number of tool calls. Please try a simpler question."
 
@@ -292,3 +265,4 @@ async def run_conversation(
         chart_spec=chart_spec,
         sources=list(sources_used),
     )
+
