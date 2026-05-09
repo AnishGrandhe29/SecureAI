@@ -4,8 +4,8 @@ uvicorn[standard]==0.30.6
 pydantic==2.9.2
 pydantic-settings==2.5.2
 
-# OpenAI
-openai==1.51.0
+# Google Gemini
+google-generativeai==0.8.6
 
 # Database
 sqlalchemy[asyncio]==2.0.35

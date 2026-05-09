@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # === Required (no defaults) ===
-    OPENAI_API_KEY: str
+    GEMINI_API_KEY: str
     SECRET_KEY: str
 
     # === Database ===
@@ -31,8 +31,8 @@ class Settings(BaseSettings):
     # === JWT ===
     JWT_ALGORITHM: str = "HS256"
 
-    # === OpenAI ===
-    OPENAI_MODEL: str = "gpt-4o"
+    # === Gemini ===
+    GEMINI_MODEL: str = "gemini-1.5-pro"
 
     model_config = {
         "env_file": ".env",

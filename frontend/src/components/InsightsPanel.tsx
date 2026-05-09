@@ -4,11 +4,16 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useApp } from "@/app/context";
 import ChartWidget from "./ChartWidget";
 
+interface ApiResult {
+  rows?: any[];
+  [key: string]: unknown;
+}
+
 interface AnalyticsData {
-  topTitles: Record<string, unknown> | null;
-  genreTrends: Record<string, unknown> | null;
-  cityEngagement: Record<string, unknown> | null;
-  marketingRoi: Record<string, unknown> | null;
+  topTitles: ApiResult | null;
+  genreTrends: ApiResult | null;
+  cityEngagement: ApiResult | null;
+  marketingRoi: ApiResult | null;
 }
 
 export default function InsightsPanel() {

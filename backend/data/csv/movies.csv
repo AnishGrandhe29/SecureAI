@@ -1,0 +1,11 @@
+movie_id,title,genre,release_year,director,runtime_min,rating,budget_usd,revenue_usd
+1,Stellar Run,Sci-Fi,2025,James Nolan,102,5.6,25627198.88,62016998.63
+2,Dark Orbit,Sci-Fi,2025,Sarah Chen,101,8.2,71913467.58,29039197.5
+3,Last Kingdom,Action,2024,Marcus Webb,92,5.6,21397848.11,130295979.72
+4,Echo Chamber,Thriller,2023,Aisha Patel,159,6.3,53741332.83,139875838.31
+5,Crimson Tide 2,Action,2023,Viktor Reis,145,7.9,65707284.25,9572699.84
+6,Void Protocol,Thriller,2023,Lena Kim,142,6.9,16660962.49,239645563.47
+7,Laughter Factory,Comedy,2024,Robert Zhao,101,5.9,12253728.26,213093636.66
+8,Stand-Up Universe,Comedy,2025,Diana Cruz,121,8.7,59729884.0,137767198.13
+9,Comedy Central,Comedy,2024,Thomas Berg,98,7.7,67205349.82,157681780.07
+10,Romance in Rain,Romance,2024,Priya Sharma,161,6.3,10216636.16,168025723.09

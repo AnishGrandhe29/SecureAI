@@ -79,5 +79,13 @@ async def chat(
             sources=result.sources,
         )
     except Exception as e:
-        logger.error("chat_error", error=str(e), user_id=current_user.username)
+        error_str = str(e)
+        logger.error("chat_error", error=error_str, user_id=current_user.username)
+        
+        if "429" in error_str or "Quota exceeded" in error_str or "RATE_LIMIT_EXCEEDED" in error_str:
+            raise HTTPException(
+                status_code=429, 
+                detail="Gemini API rate limit exceeded. The free tier only allows 15 requests per minute. Please wait a moment and try again."
+            )
+            
         raise HTTPException(status_code=500, detail="Internal error processing chat request")
