@@ -11,11 +11,11 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     # === Required (no defaults) ===
-    GEMINI_API_KEY: str
+    OPENAI_API_KEY: str
     SECRET_KEY: str
 
     # === Database ===
-    DATABASE_URL: str = "sqlite+aiosqlite:///./data/insights.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./sqlite_data/insights.db"
 
     # === Redis ===
     REDIS_URL: str = "redis://redis:6379"
@@ -31,8 +31,8 @@ class Settings(BaseSettings):
     # === JWT ===
     JWT_ALGORITHM: str = "HS256"
 
-    # === Gemini ===
-    GEMINI_MODEL: str = "gemini-1.5-pro"
+    # === OpenAI ===
+    OPENAI_MODEL: str = "gpt-4o"
 
     model_config = {
         "env_file": ".env",
