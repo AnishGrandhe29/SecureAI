@@ -15,6 +15,7 @@ services:
     volumes:
       - ./backend/data:/app/data
       - chroma_data:/app/chroma_db
+      - sqlite_data:/app/sqlite_data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 10s
@@ -44,3 +45,4 @@ services:
 
 volumes:
   chroma_data:
+  sqlite_data:

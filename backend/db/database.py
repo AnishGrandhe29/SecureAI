@@ -6,7 +6,11 @@ Provides get_db dependency for FastAPI route injection.
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from config import settings
+from pathlib import Path
 
+if "sqlite" in settings.DATABASE_URL:
+    db_path = settings.DATABASE_URL.split("///")[-1]
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_async_engine(
     settings.DATABASE_URL,
